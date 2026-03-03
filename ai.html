@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 基础知识与全景图探索 (AI Fundamentals Explorer)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-bg': '#fafaf9', /* stone-50 */
+                        'brand-text': '#1e293b', /* slate-800 */
+                        'brand-primary': '#0d9488', /* teal-600 */
+                        'brand-primary-light': '#ccfbf1', /* teal-50 */
+                        'brand-accent': '#f97316', /* orange-500 */
+                        'brand-accent-light': '#ffedd5', /* orange-50 */
+                        'brand-border': '#e2e8f0', /* slate-200 */
+                    },
+                    fontFamily: {
+                        sans: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: theme('colors.brand-bg');
+            color: theme('colors.brand-text');
+        }
+        
+        .nav-item.active {
+            background-color: theme('colors.brand-primary-light');
+            color: theme('colors.brand-primary');
+            border-right: 4px solid theme('colors.brand-primary');
+            font-weight: 600;
+        }
+
+        .term-btn.active {
+            background-color: theme('colors.brand-primary');
+            color: white;
+            border-color: theme('colors.brand-primary');
+        }
+
+        /* Strict Chart Container Styling */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 400px;
+            overflow: hidden;
+        }
+
+        @media (max-width: 640px) {
+            .chart-container {
+                height: 250px;
+            }
+        }
+
+        /* Custom CSS Diagrams (No SVG) */
+        .nested-circle {
+            border-radius: 50%;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding-top: 5%;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        .nested-circle:hover {
+            transform: scale(1.02);
+        }
+
+        .agent-node {
+            border: 2px solid theme('colors.brand-border');
+            border-radius: 0.5rem;
+            padding: 1rem;
+            background: white;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        
+        /* CSS arrows using borders */
+        .arrow-right {
+            width: 0; 
+            height: 0; 
+            border-top: 10px solid transparent;
+            border-bottom: 10px solid transparent;
+            border-left: 15px solid theme('colors.brand-primary');
+        }
+        .arrow-down {
+            width: 0; 
+            height: 0; 
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-top: 15px solid theme('colors.brand-primary');
+        }
+
+        .fade-in {
+            animation: fadeIn 0.4s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: theme('colors.brand-bg');
+        }
+        ::-webkit-scrollbar-thumb {
+            background: theme('colors.brand-border');
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: theme('colors.brand-primary');
+        }
+    </style>
+</head>
+<body class="font-sans antialiased h-screen flex flex-col md:flex-row overflow-hidden">
+
+    <!-- Chosen Palette: Warm Neutrals (Stone) with Teal (Primary) and Orange (Accent) highlights -->
+
+    <!-- Application Structure Plan: A responsive, side-navigation dashboard. 
+         Chosen for usability because AI concepts are hierarchical and vast. 
+         - A persistent sidebar allows jumping between foundational concepts, terminology, and market landscape without losing context.
+         - The main area dynamically updates.
+         - Section 1 introduces the big picture (nested concepts).
+         - Section 2 is an interactive dictionary (click a term, see details) - better than a long scrolling list.
+         - Section 3 visually maps the Agent architecture.
+         - Section 4 compares current market models and tools.
+         This non-linear exploration suits varied user knowledge levels. -->
+
+    <!-- Visualization & Content Choices:
+         - Concept Hierarchy (AI->ML->DL->GenAI): CSS nested circles. Interaction: Hover effects. Justification: Intuitively shows subsets without complex charts or SVGs.
+         - Terminology Dictionary: CSS Grid with interactive buttons + Detail Panel. Interaction: Click to load definition. Justification: Keeps UI clean, prevents cognitive overload compared to a massive table.
+         - AI Agent Architecture: CSS Flexbox flowchart (boxes and CSS arrows). Interaction: None, static structural view. Justification: Clearly maps the flow from User -> Agent -> Tools/Memory without external diagramming libraries (NO SVG/Mermaid).
+         - Model Comparison: Chart.js Horizontal Bar Chart. Interaction: Tooltips. Justification: Best way to compare quantitative metrics like Context Windows across different LLMs. Conforms to NO SVG rule (uses Canvas).
+    -->
+
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <!-- Sidebar Navigation -->
+    <nav class="w-full md:w-64 bg-white border-b md:border-b-0 md:border-r border-brand-border flex flex-col h-auto md:h-full flex-shrink-0 z-10 shadow-sm">
+        <div class="p-6 border-b border-brand-border">
+            <h1 class="text-2xl font-bold text-brand-primary tracking-tight">AI 基础导航</h1>
+            <p class="text-xs text-slate-500 mt-1">从概念到工具的交互式指南</p>
+        </div>
+        <div class="flex flex-row md:flex-col overflow-x-auto md:overflow-y-auto p-4 gap-2">
+            <button onclick="nav('sec-overview')" id="nav-sec-overview" class="nav-item active flex-shrink-0 text-left px-4 py-3 rounded-lg transition-colors duration-200">
+                <span class="mr-2">🌍</span> 宏观概念 (Overview)
+            </button>
+            <button onclick="nav('sec-dictionary')" id="nav-sec-dictionary" class="nav-item flex-shrink-0 text-left px-4 py-3 rounded-lg transition-colors duration-200">
+                <span class="mr-2">📖</span> 核心术语库 (Dictionary)
+            </button>
+            <button onclick="nav('sec-agent')" id="nav-sec-agent" class="nav-item flex-shrink-0 text-left px-4 py-3 rounded-lg transition-colors duration-200">
+                <span class="mr-2">🤖</span> 智能体架构 (Agents)
+            </button>
+            <button onclick="nav('sec-landscape')" id="nav-sec-landscape" class="nav-item flex-shrink-0 text-left px-4 py-3 rounded-lg transition-colors duration-200">
+                <span class="mr-2">⛰️</span> 市场全景图 (Landscape)
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 overflow-y-auto p-6 md:p-10 relative scroll-smooth">
+        
+        <!-- Section 1: Overview -->
+        <section id="sec-overview" class="fade-in max-w-5xl mx-auto">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold mb-4">拆解 AI：从宏观到微观</h2>
+                <p class="text-lg text-slate-600 leading-relaxed bg-white p-6 rounded-xl border border-brand-border shadow-sm">
+                    本节旨在帮您理清媒体上经常混用的几个概念。人工智能并不是一个单一的技术，而是一组像“俄罗斯套娃”一样层层递进的领域。如今引爆科技圈的 ChatGPT 等工具，主要属于最内层的“生成式 AI”。
+                </p>
+            </div>
+
+            <div class="bg-white p-8 rounded-xl border border-brand-border shadow-sm flex flex-col lg:flex-row items-center gap-10">
+                <!-- CSS Nested Circles Diagram -->
+                <div class="relative w-72 h-72 md:w-96 md:h-96 flex-shrink-0">
+                    <!-- AI -->
+                    <div class="nested-circle absolute inset-0 bg-slate-100 border border-slate-300 z-10" title="人工智能">
+                        <span class="text-slate-600 text-sm md:text-base mt-2">人工智能 (AI)</span>
+                    </div>
+                    <!-- ML -->
+                    <div class="nested-circle absolute inset-[10%] bg-teal-50 border border-teal-200 z-20" title="机器学习">
+                        <span class="text-teal-700 text-sm md:text-base mt-4">机器学习 (ML)</span>
+                    </div>
+                    <!-- DL -->
+                    <div class="nested-circle absolute inset-[25%] bg-blue-50 border border-blue-200 z-30" title="深度学习">
+                        <span class="text-blue-700 text-sm md:text-base mt-6">深度学习 (DL)</span>
+                    </div>
+                    <!-- GenAI -->
+                    <div class="nested-circle absolute inset-[45%] bg-orange-100 border-2 border-brand-accent z-40 items-center padding-0 shadow-lg" title="生成式AI">
+                        <span class="text-orange-700 font-bold text-sm md:text-base text-center px-2">生成式 AI<br><span class="text-xs font-normal text-orange-600">(如 LLM)</span></span>
+                    </div>
+                </div>
+
+                <div class="flex-1 space-y-4">
+                    <div class="p-4 rounded-lg bg-slate-50 border-l-4 border-slate-400">
+                        <h3 class="font-bold text-slate-800">人工智能 (AI)</h3>
+                        <p class="text-sm text-slate-600">最广泛的概念，指让机器模拟人类智能行为的科学与工程。</p>
+                    </div>
+                    <div class="p-4 rounded-lg bg-teal-50 border-l-4 border-teal-500">
+                        <h3 class="font-bold text-teal-900">机器学习 (ML)</h3>
+                        <p class="text-sm text-teal-700">AI的一个子集，不依赖显式编程，而是让机器从数据中自动学习规律并改进。</p>
+                    </div>
+                    <div class="p-4 rounded-lg bg-blue-50 border-l-4 border-blue-500">
+                        <h3 class="font-bold text-blue-900">深度学习 (DL)</h3>
+                        <p class="text-sm text-blue-700">ML的子集，基于多层人工神经网络构建，擅长处理海量非结构化数据（如图像、音频）。</p>
+                    </div>
+                    <div class="p-4 rounded-lg bg-orange-50 border-l-4 border-brand-accent shadow-sm">
+                        <h3 class="font-bold text-orange-900">生成式 AI (GenAI) & 大模型 (LLM)</h3>
+                        <p class="text-sm text-orange-800">DL的突破应用。不仅能分析数据，还能基于学习到的模式<b>创造全新内容</b>（文本、图像、代码等）。大语言模型(LLM)是其处理文本的核心代表。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: Dictionary -->
+        <section id="sec-dictionary" class="fade-in max-w-6xl mx-auto hidden">
+            <div class="mb-6">
+                <h2 class="text-3xl font-bold mb-4">交互式术语字典</h2>
+                <p class="text-lg text-slate-600 leading-relaxed">
+                    在阅读 AI 相关的资讯或报告时，总会遇到各种缩写和专业名词。点击左侧的术语按钮，即可在右侧查看通俗易懂的解释、类比及应用场景。
+                </p>
+            </div>
+
+            <div class="flex flex-col lg:flex-row gap-6">
+                <!-- Term List -->
+                <div class="w-full lg:w-1/3 bg-white p-4 rounded-xl border border-brand-border shadow-sm max-h-[60vh] overflow-y-auto">
+                    <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">核心模型概念</h3>
+                    <div class="flex flex-wrap gap-2 mb-6" id="terms-model"></div>
+                    
+                    <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">应用与交互</h3>
+                    <div class="flex flex-wrap gap-2 mb-6" id="terms-interaction"></div>
+
+                    <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">高级架构/技术</h3>
+                    <div class="flex flex-wrap gap-2" id="terms-advanced"></div>
+                </div>
+
+                <!-- Term Detail -->
+                <div class="w-full lg:w-2/3 bg-white p-8 rounded-xl border border-brand-border shadow-sm min-h-[400px] flex flex-col justify-center relative">
+                    <div id="term-placeholder" class="text-center text-slate-400 absolute inset-0 flex flex-col items-center justify-center">
+                        <span class="text-4xl mb-4">👈</span>
+                        <p>请点击左侧术语查看详细解释</p>
+                    </div>
+                    
+                    <div id="term-content" class="hidden h-full flex flex-col">
+                        <div class="flex items-center gap-3 mb-4">
+                            <span id="term-icon" class="text-3xl"></span>
+                            <h2 id="term-title" class="text-2xl font-bold text-brand-primary"></h2>
+                        </div>
+                        <div class="bg-brand-bg p-4 rounded-lg mb-4 text-slate-700 text-lg" id="term-def"></div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-auto">
+                            <div class="border border-brand-border rounded-lg p-4 bg-brand-accent-light bg-opacity-30">
+                                <h4 class="font-bold text-brand-accent mb-2 flex items-center"><span class="mr-2">💡</span> 通俗类比</h4>
+                                <p id="term-analogy" class="text-sm text-slate-700"></p>
+                            </div>
+                            <div class="border border-brand-border rounded-lg p-4 bg-brand-primary-light bg-opacity-30">
+                                <h4 class="font-bold text-brand-primary mb-2 flex items-center"><span class="mr-2">🛠️</span> 实际体现</h4>
+                                <p id="term-example" class="text-sm text-slate-700"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Agents -->
+        <section id="sec-agent" class="fade-in max-w-5xl mx-auto hidden">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold mb-4">什么是 AI Agent (智能体)？</h2>
+                <p class="text-lg text-slate-600 leading-relaxed bg-white p-6 rounded-xl border border-brand-border shadow-sm">
+                    如果说 LLM（大语言模型）是一个极其聪明的“大脑”，那么 Agent 就是给这个大脑装上了“手脚”和“记忆”。Agent 不仅能陪你聊天，还能理解你的目标，自主规划步骤，调用外部工具（Skills），并最终完成复杂的现实任务。它是 AI 走向通用人工智能 (AGI) 的关键路径。
+                </p>
+            </div>
+
+            <div class="bg-white p-8 rounded-xl border border-brand-border shadow-sm overflow-x-auto">
+                <h3 class="text-center font-bold text-slate-700 mb-8 text-xl">AI Agent 核心架构运作流</h3>
+                
+                <!-- CSS Flow Diagram -->
+                <div class="flex flex-col items-center min-w-[600px]">
+                    <!-- User Input -->
+                    <div class="agent-node bg-slate-50 border-slate-300 w-64 mb-4">
+                        <span class="text-2xl block mb-2">👤</span>
+                        <div class="font-bold">用户发出复杂指令</div>
+                        <div class="text-xs text-slate-500 mt-1">"帮我分析苹果公司近期财报，总结利好并写成邮件"</div>
+                    </div>
+
+                    <div class="arrow-down mb-4"></div>
+
+                    <!-- Core Agent Box -->
+                    <div class="border-4 border-brand-primary rounded-xl p-6 w-full max-w-3xl relative bg-brand-primary-light bg-opacity-10">
+                        <div class="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-brand-primary text-white px-4 py-1 rounded-full font-bold text-sm">
+                            Agent 核心系统
+                        </div>
+
+                        <div class="flex justify-between items-center gap-4 mt-4">
+                            <!-- Memory -->
+                            <div class="agent-node flex-1 h-32 flex flex-col justify-center border-blue-200 bg-blue-50">
+                                <span class="text-xl mb-1">🧠</span>
+                                <div class="font-bold text-blue-800">记忆 (Memory)</div>
+                                <div class="text-xs text-blue-600 mt-1">保存历史对话、用户偏好。分为短期上下文和长期数据库。</div>
+                            </div>
+
+                            <div class="text-2xl text-slate-300">↔️</div>
+
+                            <!-- LLM Engine -->
+                            <div class="agent-node flex-1 h-32 flex flex-col justify-center border-brand-accent bg-brand-accent-light border-2 transform scale-105 shadow-md">
+                                <span class="text-xl mb-1">⚙️</span>
+                                <div class="font-bold text-orange-800">大模型 (LLM)</div>
+                                <div class="text-xs text-orange-700 mt-1">充当推理引擎。负责拆解任务、规划步骤 (Planning)、反思纠错。</div>
+                            </div>
+
+                            <div class="text-2xl text-slate-300">↔️</div>
+
+                            <!-- Tools/Skills -->
+                            <div class="agent-node flex-1 h-32 flex flex-col justify-center border-emerald-200 bg-emerald-50">
+                                <span class="text-xl mb-1">🧰</span>
+                                <div class="font-bold text-emerald-800">工具/技能 (Tools/Skills)</div>
+                                <div class="text-xs text-emerald-600 mt-1">LLM 调用的外部能力：如网页搜索、执行Python代码、调用API、读写文件。</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="arrow-down mt-4 mb-4"></div>
+
+                    <!-- Output -->
+                    <div class="agent-node bg-slate-50 border-slate-300 w-64">
+                        <span class="text-2xl block mb-2">✅</span>
+                        <div class="font-bold">最终执行结果</div>
+                        <div class="text-xs text-slate-500 mt-1">输出一封包含财报数据分析和总结的完整邮件草稿。</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Landscape -->
+        <section id="sec-landscape" class="fade-in max-w-6xl mx-auto hidden">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold mb-4">主流模型与工具全景</h2>
+                <p class="text-lg text-slate-600 leading-relaxed bg-white p-6 rounded-xl border border-brand-border shadow-sm">
+                    AI 领域发展极快，了解市场上主流的底层模型（基础设施）和面向最终用户的应用工具，有助于在具体业务中做出正确的技术选型。
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Chart Container: Context Windows -->
+                <div class="bg-white p-6 rounded-xl border border-brand-border shadow-sm">
+                    <h3 class="text-xl font-bold text-slate-800 mb-2">模型争霸赛：上下文窗口对比</h3>
+                    <p class="text-sm text-slate-500 mb-6">上下文窗口决定了模型一次性阅读和记住多少信息（100K 约等于一本中篇小说）。容量越大，处理长文档和复杂代码库的能力越强。</p>
+                    
+                    <div class="chart-container">
+                        <canvas id="contextChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Tool Landscape Grid -->
+                <div class="bg-white p-6 rounded-xl border border-brand-border shadow-sm">
+                    <h3 class="text-xl font-bold text-slate-800 mb-6">主流工具分类矩阵</h3>
+                    
+                    <div class="space-y-4">
+                        <!-- Category 1 -->
+                        <div class="border border-slate-200 rounded-lg overflow-hidden">
+                            <div class="bg-slate-50 px-4 py-2 border-b border-slate-200 flex justify-between items-center">
+                                <span class="font-bold text-slate-700 text-sm">通用对话与助手 (Chat & Assistants)</span>
+                                <span class="text-lg">💬</span>
+                            </div>
+                            <div class="p-4 grid grid-cols-2 gap-2 text-sm">
+                                <div class="p-2 bg-white border border-slate-100 rounded text-center shadow-sm">ChatGPT (OpenAI)</div>
+                                <div class="p-2 bg-white border border-slate-100 rounded text-center shadow-sm">Claude (Anthropic)</div>
+                                <div class="p-2 bg-white border border-slate-100 rounded text-center shadow-sm">Gemini (Google)</div>
+                                <div class="p-2 bg-white border border-slate-100 rounded text-center shadow-sm">Kimi (月之暗面)</div>
+                            </div>
+                        </div>
+
+                        <!-- Category 2 -->
+                        <div class="border border-slate-200 rounded-lg overflow-hidden">
+                            <div class="bg-slate-50 px-4 py-2 border-b border-slate-200 flex justify-between items-center">
+                                <span class="font-bold text-slate-700 text-sm">代码与开发 (Coding & Dev)</span>
+                                <span class="text-lg">💻</span>
+                            </div>
+                            <div class="p-4 grid grid-cols-2 gap-2 text-sm">
+                                <div class="p-2 bg-white border border-slate-100 rounded text-center shadow-sm">GitHub Copilot</div>
+                                <div class="p-2 bg-white border border-slate-100 rounded text-center shadow-sm">Cursor (IDE)</div>
+                                <div class="p-2 bg-white border border-slate-100 rounded text-center shadow-sm">LangChain (框架)</div>
+                                <div class="p-2 bg-white border border-slate-100 rounded text-center shadow-sm">Dify (Agent平台)</div>
+                            </div>
+                        </div>
+
+                        <!-- Category 3 -->
+                        <div class="border border-slate-200 rounded-lg overflow-hidden">
+                            <div class="bg-slate-50 px-4 py-2 border-b border-slate-200 flex justify-between items-center">
+                                <span class="font-bold text-slate-700 text-sm">多模态与内容生成 (Images, Audio, Video)</span>
+                                <span class="text-lg">🎨</span>
+                            </div>
+                            <div class="p-4 grid grid-cols-2 gap-2 text-sm">
+                                <div class="p-2 bg-white border border-slate-100 rounded text-center shadow-sm">Midjourney (绘图)</div>
+                                <div class="p-2 bg-white border border-slate-100 rounded text-center shadow-sm">Sora / Runaway (视频)</div>
+                                <div class="p-2 bg-white border border-slate-100 rounded text-center shadow-sm">DALL-E 3 (绘图)</div>
+                                <div class="p-2 bg-white border border-slate-100 rounded text-center shadow-sm">Suno / Udio (音乐)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Models Table -->
+            <div class="mt-8 bg-white p-6 rounded-xl border border-brand-border shadow-sm">
+                <h3 class="text-xl font-bold text-slate-800 mb-4">底层大模型 (Foundation Models) 梯队速览</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-left text-sm whitespace-nowrap">
+                        <thead class="uppercase tracking-wider border-b-2 border-slate-200 bg-slate-50 text-slate-600">
+                            <tr>
+                                <th class="px-6 py-3 font-bold">模型家族</th>
+                                <th class="px-6 py-3 font-bold">开发机构</th>
+                                <th class="px-6 py-3 font-bold">开源状态</th>
+                                <th class="px-6 py-3 font-bold">核心特点</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 text-slate-700">
+                            <tr class="hover:bg-slate-50">
+                                <td class="px-6 py-4 font-bold">GPT-4o</td>
+                                <td class="px-6 py-4">OpenAI</td>
+                                <td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">闭源</span></td>
+                                <td class="px-6 py-4">行业标杆，原生多模态(音视频实时交互极其强大)，推理能力顶尖。</td>
+                            </tr>
+                            <tr class="hover:bg-slate-50">
+                                <td class="px-6 py-4 font-bold">Claude 3.5 Sonnet</td>
+                                <td class="px-6 py-4">Anthropic</td>
+                                <td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">闭源</span></td>
+                                <td class="px-6 py-4">代码编写能力极强，语言表达自然，操作ArtifactsUI极其流畅，反应速度极快。</td>
+                            </tr>
+                            <tr class="hover:bg-slate-50">
+                                <td class="px-6 py-4 font-bold">Gemini 1.5 Pro</td>
+                                <td class="px-6 py-4">Google</td>
+                                <td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">闭源</span></td>
+                                <td class="px-6 py-4">支持超大上下文(最高200万Token)，能一次性处理几小时视频或海量代码库。</td>
+                            </tr>
+                            <tr class="hover:bg-slate-50">
+                                <td class="px-6 py-4 font-bold">Llama 3 (8B/70B/400B+)</td>
+                                <td class="px-6 py-4">Meta</td>
+                                <td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">开源</span></td>
+                                <td class="px-6 py-4">开源界的王者，性能媲美顶级闭源模型，推动了全球本地化部署部署热潮。</td>
+                            </tr>
+                            <tr class="hover:bg-slate-50">
+                                <td class="px-6 py-4 font-bold">Mistral / Mixtral</td>
+                                <td class="px-6 py-4">Mistral AI</td>
+                                <td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">开源</span></td>
+                                <td class="px-6 py-4">欧洲AI之光，采用MoE(混合专家)架构，体量小但性能极高，性价比极佳。</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // --- Navigation Logic ---
+        function nav(sectionId) {
+            // Update nav buttons
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            document.getElementById('nav-' + sectionId).classList.add('active');
+
+            // Update sections
+            document.querySelectorAll('main > section').forEach(el => el.classList.add('hidden'));
+            document.getElementById(sectionId).classList.remove('hidden');
+
+            // Render chart if landscape is selected and chart not rendered yet
+            if(sectionId === 'sec-landscape' && !window.chartRendered) {
+                renderChart();
+                window.chartRendered = true;
+            }
+        }
+
+        // --- Dictionary Logic ---
+        const dictionaryData = {
+            'llm': {
+                title: 'LLM (大语言模型)',
+                category: 'model',
+                icon: '🧠',
+                def: 'Large Language Model 的缩写。一种基于深度学习（特别是 Transformer 架构）的人工智能模型，通过阅读海量文本数据进行训练。它的核心能力是“预测下一个词语”，从而能够理解指令、生成文章、翻译甚至写代码。',
+                analogy: '就像一个读完了世界上所有图书馆藏书的超级学者，当你说了上半句，他能根据海量记忆完美猜出下半句，从而完成各种文本任务。',
+                example: '支撑 ChatGPT、Claude 等对话应用背后的核心引擎（如 GPT-4, Llama 3）。'
+            },
+            'parameters': {
+                title: '参数量 (Parameters)',
+                category: 'model',
+                icon: '🔢',
+                def: '神经网络模型中可以被学习和调整的变量数量。通常用 B（Billion，十亿）来表示。参数量越大，模型内部的“连接”越复杂，通常意味着模型的知识容量越大、推理能力越强，但需要的算力也越高。',
+                analogy: '如果把模型比作大脑，参数量就像是大脑中神经元突触的数量。突触越多，大脑能处理的复杂信息就越多。',
+                example: 'Llama-3-8B（80亿参数）适合在高性能笔记本上运行；而 GPT-4 估计有超过万亿（Trillion）参数，只能在大型数据中心运行。'
+            },
+            'prompt': {
+                title: '提示词 (Prompt)',
+                category: 'interaction',
+                icon: '⌨️',
+                def: '用户输入给 AI 系统的指令、问题或上下文信息。Prompt Engineering（提示工程）就是研究如何构建高质量的 Prompt，以引导模型输出更准确、更符合预期的结果。',
+                analogy: '就像你给下属布置任务时写的需求文档。需求写得越清晰、背景交代得越详细，下属交出的工作成果就越符合你的心意。',
+                example: '“请以莎士比亚的风格，写一首关于秋天落叶的十四行诗，包含词语‘金黄’和‘寂寥’。”'
+            },
+            'context': {
+                title: '上下文窗口 (Context Window)',
+                category: 'interaction',
+                icon: '📜',
+                def: '模型在一次对话或一次处理中，能够“记住”和考虑的最大文本长度。通常用 Token（词元）数量来衡量。超出这个窗口的信息，模型会“遗忘”。',
+                analogy: '就像一个人的短期工作记忆容量。如果你一次性给他读一本 500 页的书让他总结，但他的短期记忆只能记住 50 页，他就无法统观全局。',
+                example: 'Gemini 1.5 Pro 有高达 200 万 Token 的上下文，这意味着你可以直接把几十本财报的 PDF 扔给它，让它一次性综合分析，而不会遗忘开头的内容。'
+            },
+            'token': {
+                title: '词元 (Token)',
+                category: 'model',
+                icon: '🧩',
+                def: 'LLM 处理文本的基本单位。它不一定是一个完整的单词；对于英文，一个单词可能是 1-2 个 token；对于中文，一个汉字通常对应 1-2 个 token。模型的计费、上下文长度限制都是基于 token 计算的。',
+                analogy: '就像乐高积木的单个颗粒。一段话会被拆解成一个个积木颗粒喂给模型处理，模型输出时也是吐出一个个积木颗粒组合成句子。',
+                example: '单词 "Hamburger" 可能会被模型拆分为 "Ham", "bur", "ger" 三个 token 进行处理。'
+            },
+            'hallucination': {
+                title: '幻觉 (Hallucination)',
+                category: 'interaction',
+                icon: '👻',
+                def: '大模型生成了看似合理但实际上是虚构、错误或缺乏事实依据的内容。这是目前 LLM 面临的主要挑战之一，因为它们本质上是概率推断机器，而非事实数据库。',
+                analogy: '就像一个极度自信但不一定懂行的推销员，遇到不懂的问题时，为了不冷场，一本正经地胡说八道。',
+                example: '你问 AI “请介绍一下林黛玉倒拔垂杨柳的故事”，AI 可能会煞有介事地编造出一段红楼梦与水浒传混搭的情节。'
+            },
+            'agent': {
+                title: '智能体 (AI Agent)',
+                category: 'advanced',
+                icon: '🤖',
+                def: '一种能够感知环境、自主规划、做出决策并采取行动以实现特定目标的人工智能系统。它以大模型为核心大脑，结合了记忆（Memory）、规划能力（Planning）和工具使用（Tools/Skills）。',
+                analogy: 'LLM 只是一个聪明的顾问（只能说）；Agent 则是一个全能的实习生（能说、能想、还能自己上网查资料、写代码并执行）。',
+                example: 'Devin（AI程序员）就是一个 Agent，你给它一个需求，它自己写代码、测试、遇到报错自己去查文档修改，直到完成开发。'
+            },
+            'skills': {
+                title: '工具/技能 (Tools/Skills/Function Calling)',
+                category: 'advanced',
+                icon: '🧰',
+                def: '赋予大模型与外部世界交互的能力。开发者可以定义一些函数（如搜索网络、查询数据库、发送邮件），当大模型判断需要这些信息时，会输出指令去“调用”这些工具获取结果，再结合结果生成最终回答。',
+                analogy: '就像给一个被关在小黑屋里的大脑，配了一台联网的电脑和一部电话，让它可以通过这些工具获取外面的信息。',
+                example: '当你在 ChatGPT 中询问“今天北京天气如何”，模型自身并不知道实时天气，它会调用“Bing搜索工具”或“天气API接口”，获取数据后再回答你。'
+            },
+            'rag': {
+                title: '检索增强生成 (RAG)',
+                category: 'advanced',
+                icon: '🔎',
+                def: 'Retrieval-Augmented Generation。一种解决模型“幻觉”和“知识更新不及时”的技术。在让模型回答问题前，先从外部知识库（如企业内部文档）中检索出相关片段，然后将片段与问题一起喂给模型，让模型基于检索到的事实进行总结回答。',
+                analogy: '开卷考试。学生（模型）本身知识可能不全或记错，但在回答前，允许他先去指定的参考书（知识库）里翻出相关章节，照着参考书写答案，准确率就大幅提升。',
+                example: '企业内部的智能客服系统，你问公司的报销流程，它先去公司的HR文档库检索最新规定，然后基于规定生成回答。'
+            },
+            'multimodal': {
+                title: '多模态 (Multimodal)',
+                category: 'model',
+                icon: '👁️',
+                def: '模型不仅能处理和理解单一类型的数据（如纯文本），还能同时理解和处理多种类型的数据（模态），如图像、音频、视频。',
+                analogy: '早期的 AI 像是一个只通过纸条交流的盲人；多模态 AI 则长出了眼睛（看图）和耳朵（听音），可以全方位感知世界。',
+                example: '给 GPT-4o 拍一张冰箱内部的照片，它能直接识别出食材并给你生成一份菜谱；或者直接听懂你的语音并用声音回复。'
+            }
+        };
+
+        function renderDictionary() {
+            const containerModel = document.getElementById('terms-model');
+            const containerInteraction = document.getElementById('terms-interaction');
+            const containerAdvanced = document.getElementById('terms-advanced');
+
+            for (const [key, data] of Object.entries(dictionaryData)) {
+                const btn = document.createElement('button');
+                btn.className = 'term-btn px-3 py-1.5 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors';
+                btn.innerText = data.title.split(' ')[0]; // Use short name for button
+                btn.onclick = () => selectTerm(key, btn);
+
+                if (data.category === 'model') containerModel.appendChild(btn);
+                else if (data.category === 'interaction') containerInteraction.appendChild(btn);
+                else if (data.category === 'advanced') containerAdvanced.appendChild(btn);
+            }
+        }
+
+        function selectTerm(key, btnElement) {
+            // Update button styles
+            document.querySelectorAll('.term-btn').forEach(btn => btn.classList.remove('active'));
+            btnElement.classList.add('active');
+
+            // Hide placeholder, show content
+            document.getElementById('term-placeholder').classList.add('hidden');
+            const contentDiv = document.getElementById('term-content');
+            contentDiv.classList.remove('hidden');
+            
+            // Add slight animation
+            contentDiv.classList.remove('fade-in');
+            void contentDiv.offsetWidth; // trigger reflow
+            contentDiv.classList.add('fade-in');
+
+            // Populate data
+            const data = dictionaryData[key];
+            document.getElementById('term-icon').innerText = data.icon;
+            document.getElementById('term-title').innerText = data.title;
+            document.getElementById('term-def').innerHTML = `<b>定义：</b>${data.def}`;
+            document.getElementById('term-analogy').innerText = data.analogy;
+            document.getElementById('term-example').innerText = data.example;
+        }
+
+        // --- Chart.js Logic ---
+        window.chartRendered = false;
+        function renderChart() {
+            const ctx = document.getElementById('contextChart').getContext('2d');
+            
+            // Base data: Model Context Windows (Tokens)
+            const data = {
+                labels: ['Llama 3', 'GPT-4 Turbo', 'Claude 3 Opus', 'Claude 3.5 Sonnet', 'Gemini 1.5 Pro'],
+                datasets: [{
+                    label: '上下文窗口大小 (Tokens)',
+                    data: [8192, 128000, 200000, 200000, 2000000],
+                    backgroundColor: [
+                        'rgba(148, 163, 184, 0.6)', // slate
+                        'rgba(14, 165, 233, 0.6)',  // sky
+                        'rgba(249, 115, 22, 0.6)',  // orange
+                        'rgba(249, 115, 22, 0.8)',  // orange dark
+                        'rgba(13, 148, 136, 0.8)'   // teal (primary)
+                    ],
+                    borderColor: [
+                        'rgba(148, 163, 184, 1)',
+                        'rgba(14, 165, 233, 1)',
+                        'rgba(249, 115, 22, 1)',
+                        'rgba(249, 115, 22, 1)',
+                        'rgba(13, 148, 136, 1)'
+                    ],
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            };
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false, // Critical for custom container sizing
+                    indexAxis: 'y', // Horizontal bar chart
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let value = context.raw;
+                                    // Format large numbers nicely
+                                    if(value >= 1000000) return (value/1000000).toFixed(1) + 'M Tokens';
+                                    if(value >= 1000) return (value/1000) + 'K Tokens';
+                                    return value + ' Tokens';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'logarithmic', // Use log scale because Gemini 1.5 is huge compared to others
+                            title: {
+                                display: true,
+                                text: 'Tokens (对数刻度 Log Scale)'
+                            },
+                            ticks: {
+                                callback: function(value, index, values) {
+                                    if (value === 10000) return '10K';
+                                    if (value === 100000) return '100K';
+                                    if (value === 1000000) return '1M';
+                                    if (value === 2000000) return '2M';
+                                    return '';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize App
+        document.addEventListener('DOMContentLoaded', () => {
+            renderDictionary();
+            // Default select the first term to make UI look complete if clicked
+            const firstBtn = document.querySelector('.term-btn');
+            if(firstBtn) selectTerm('llm', firstBtn);
+        });
+    </script>
+</body>
+</html>
